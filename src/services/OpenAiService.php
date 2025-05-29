@@ -58,7 +58,7 @@ class OpenAiService extends ApiService
         if (!empty($addToPrompt)) {
             $prompt .= $addToPrompt.'.';
         } 
-        $prompt .= "Keep html, dont add dot at the end if it is not there in original text. Only answer with the translated text. If you can not translate it, just return the text i've provided you(that is important!). Text: " . $text;
+        $prompt .= "If there is html in original text - keep it. Dont add html if it not in original text. dont add dot at the end if it is not there in original text. Only answer with the translated text. If you can not translate it, just return the text i've provided you(that is important!). Text: " . $text;
 
         // Log the prompt
         MultiTranslator::log([
