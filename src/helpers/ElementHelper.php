@@ -7,6 +7,7 @@ use craft\commerce\elements\Product;
 use craft\elements\Asset;
 use craft\elements\db\ElementQuery;
 use craft\elements\Entry;
+use yii\db\Expression;
 
 class ElementHelper
 {
@@ -19,13 +20,26 @@ class ElementHelper
      */
     public static function query(string $elementType, int|array $elementIds, int $siteId): ElementQuery
     {
+        $query = null;
+        
         if ($elementType == 'craft\commerce\elements\Product') {
-            return Product::find()->status(null)->id($elementIds)->siteId($siteId);
+            $query = Product::find()->status(null)->id($elementIds)->siteId($siteId);
         } elseif ($elementType == Asset::class) {
-            return Asset::find()->status(null)->id($elementIds)->siteId($siteId);
+            $query = Asset::find()->status(null)->id($elementIds)->siteId($siteId);
         } else {
-            return Entry::find()->drafts(null)->status(null)->id($elementIds)->siteId($siteId);
+            $query = Entry::find()->drafts(null)->status(null)->id($elementIds)->siteId($siteId);
         }
+        
+        // Manually set the order if we have an array of IDs
+        if (is_array($elementIds) && count($elementIds) > 1) {
+            // Use orderBy with FIELD function instead of fixedOrder
+            $ids = implode(',', array_map('intval', $elementIds));
+            if (!empty($ids)) {
+                $query->orderBy(new \yii\db\Expression("FIELD([[elements.id]], {$ids})"));
+            }
+        }
+        
+        return $query;
     }
 
     /**
