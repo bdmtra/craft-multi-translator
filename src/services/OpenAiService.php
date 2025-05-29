@@ -35,7 +35,8 @@ class OpenAiService extends ApiService
                     'Content-Type' => "application/json",
                 ],
 				'http_errors' => true,
-                'timeout' => 30
+                'timeout' => 9999999,
+                'connect_timeout' => 9999999
             ]);
         }
 
