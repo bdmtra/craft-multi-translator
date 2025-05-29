@@ -126,8 +126,7 @@ class OpenAiService extends ApiService
                     
                     if ($retryCount <= $maxRetries) {
                         // Wait before retrying (exponential backoff)
-                        $waitTime = $retryDelay * pow(2, $retryCount - 1);
-                        sleep($waitTime);
+                        sleep($retryDelay);
                         continue;
                     }
                 }
