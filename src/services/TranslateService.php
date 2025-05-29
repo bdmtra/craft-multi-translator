@@ -41,11 +41,48 @@ class TranslateService extends Component
      * @throws \craft\errors\ElementNotFoundException
      * @throws \yii\base\Exception
      */
+    /**
+     * Ensures database connection is active, reconnects if needed
+     * @return void
+     */
+    protected function ensureDatabaseConnection(): void
+    {
+        $db = \Craft::$app->getDb();
+        try {
+            // Test the connection with a simple query
+            $db->createCommand('SELECT 1')->execute();
+        } catch (\Exception $e) {
+            // If we get here, the connection is likely gone
+            if (strpos($e->getMessage(), 'MySQL server has gone away') !== false) {
+                \Craft::warning('Database connection lost. Attempting to reconnect...', __METHOD__);
+                try {
+                    // Close the connection first to ensure it's fully reset
+                    $db->close();
+                    // Open a new connection
+                    $db->open();
+                    \Craft::info('Database connection successfully reestablished', __METHOD__);
+                } catch (\Exception $reconnectException) {
+                    \Craft::error('Failed to reconnect to database: ' . $reconnectException->getMessage(), __METHOD__);
+                    throw $reconnectException;
+                }
+            } else {
+                // If it's a different error, rethrow it
+                throw $e;
+            }
+        }
+    }
+
     public function translateElement(Element $source, Site $sourceSite, Site $targetSite): Element
     {
+        // Ensure database connection is active before starting
+        $this->ensureDatabaseConnection();
+        
         // translate inside of Element, get serialized data
         $translatedValues = $this->translateElementFields($source, $sourceSite, $targetSite, true);
 
+        // Check connection again before finding/creating target
+        $this->ensureDatabaseConnection();
+        
         // find or create target (destination)
         $targetElement = $this->findTargetElement($source, $targetSite->id);
 
@@ -134,20 +171,35 @@ class TranslateService extends Component
      */
     public function translateElementFields(Element $source, Site $sourceSite, Site $targetSite, bool $isRootElement = false): array
     {
+        // Ensure database connection is active before starting
+        $this->ensureDatabaseConnection();
+        
         $target = [];
+        $fieldCount = 0;
+        $checkConnectionInterval = 5; // Check connection every 5 fields
 
         $disabledFields = $isRootElement ? $this->getProviderSettings()->getDisabledFieldHandles() : [];
 
         if ($source->title && $source->getIsTitleTranslatable() && !in_array('title', $disabledFields)) {
             $target['title'] = $this->translateText($sourceSite->language, $targetSite->language, $source->title);
+            // Check connection after translating title
+            $this->ensureDatabaseConnection();
         }
 
         if ($source instanceof Asset && $source->alt && !in_array($source->getVolume()->altTranslationMethod, ['none', 'custom'])) {
             // assets can have a translatable alt field
             $target['alt'] = $this->translateText($sourceSite->language, $targetSite->language, $source->alt);
+            // Check connection after translating alt
+            $this->ensureDatabaseConnection();
         }
 
         foreach ($source->fieldLayout->getCustomFields() as $field) {
+            // Periodically check the database connection
+            if ($fieldCount % $checkConnectionInterval === 0) {
+                $this->ensureDatabaseConnection();
+            }
+            $fieldCount++;
+            
             $translatedValue = null;
             $fieldTranslatable = $field->translationMethod != Field::TRANSLATION_METHOD_NONE;
             $processField = boolval($fieldTranslatable); // if translatable
@@ -161,7 +213,9 @@ class TranslateService extends Component
                 $translatedValue = $this->translateTextField($source, $field, $sourceSite, $targetSite);
             } elseif (in_array(get_class($field), static::$matrixFields)) {
                 // dig deeper in Matrix fields
+                $this->ensureDatabaseConnection(); // Always check connection before processing matrix fields
                 $translatedValue = $this->translateMatrixField($source, $field, $sourceSite, $targetSite);
+                $this->ensureDatabaseConnection(); // Check connection after processing matrix fields
             } elseif (get_class($field) == Table::class && $processField) {
                 // loop over table
                 $translatedValue = $this->translateTable($source, $field, $sourceSite, $targetSite);
@@ -176,12 +230,15 @@ class TranslateService extends Component
                 $translatedValue = $this->translateHyperField($source, $field, $sourceSite, $targetSite);
             } elseif (get_class($field) == 'ether\seo\fields\SeoField' && $processField) {
                 // translate Ether Seo title and description
+                $this->ensureDatabaseConnection(); // Check connection before processing SEO fields
                 $translatedValue = $this->translateEtherSeoField($source, $field, $sourceSite, $targetSite);
             } elseif (get_class($field) == 'nystudio107\seomatic\fields\SeoSettings' && $processField) {
                 // translate nystudio107's Seomatic data
+                $this->ensureDatabaseConnection(); // Check connection before processing SEO fields
                 $translatedValue = $this->translateSeomaticField($source, $field, $sourceSite, $targetSite);
             } elseif (get_class($field) == 'verbb\vizy\fields\VizyField' && $processField) {
-                // translate nystudio107's Seomatic data
+                // translate Vizy field data
+                $this->ensureDatabaseConnection(); // Check connection before processing Vizy fields
                 $translatedValue = $this->translateVizyField($source, $field, $sourceSite, $targetSite);
             }
 
@@ -190,6 +247,7 @@ class TranslateService extends Component
                 'abmat\tinymce\Field',
             ])) {
                 // search for interal href links
+                $this->ensureDatabaseConnection(); // Check connection before processing links
                 $translatedValue = $this->translateLinks($translatedValue, $sourceSite, $targetSite);
                 $translatedValue = $this->translateNestedEntries($translatedValue, $sourceSite, $targetSite);
             }
