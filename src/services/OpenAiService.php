@@ -51,7 +51,20 @@ class OpenAiService extends ApiService
         $targetLanguage = $this->getLanguage($targetLocale);
 
         $prompt = ($sourceLanguage) ? "Translate the following text from $sourceLanguage " : 'Translate the following text ';
-        $prompt .= "to $targetLanguage, keep html and only answer with the translated text, if you can not translate it, just return the text i've provided you: " . $text;
+        $prompt .= "to $targetLanguage.";
+        $addToPrompt = $this->getProviderSettings()->getSetting('addToPrompt') ?  $this->getProviderSettings()->getSetting('addToPrompt') : $this->getProviderSettings()->getAddToPrompt();
+        if (!empty($addToPrompt)) {
+            $prompt .= $addToPrompt.'.';
+        } 
+        $prompt .= "Keep html, dont add dot at the end if it is not there in original text. Only answer with the translated text. If you can not translate it, just return the text i've provided you(that is important!). Text: " . $text;
+
+        // Log the prompt
+        MultiTranslator::log([
+            'type' => 'prompt',
+            'source_locale' => $sourceLocale,
+            'target_locale' => $targetLocale,
+            'content' => $prompt
+        ]);
 
         $body = [
             'model' => $this->getProviderSettings()->getOpenAiModel(),
@@ -72,7 +85,17 @@ class OpenAiService extends ApiService
             $contents = json_decode($contents);
 
             foreach ($contents->choices as $choice) {
-                return $choice->message->content;
+                $responseContent = $choice->message->content;
+                
+                // Log the response
+                MultiTranslator::log([
+                    'type' => 'response',
+                    'source_locale' => $sourceLocale,
+                    'target_locale' => $targetLocale,
+                    'content' => $responseContent
+                ]);
+                
+                return $responseContent;
             }
         }
 

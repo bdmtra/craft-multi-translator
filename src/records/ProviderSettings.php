@@ -110,6 +110,15 @@ class ProviderSettings extends ActiveRecord
     }
 
     /**
+     * Custom instructions to add to the OpenAI translation prompt
+     * @return string
+     */
+    public function getAddToPrompt(): string
+    {
+        return $this->getSetting('addToPrompt', '');
+    }
+
+    /**
      * clear the slug when setting a translated title
      * @return bool
      */

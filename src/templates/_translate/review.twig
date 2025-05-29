@@ -82,7 +82,7 @@
         </fieldset>
 
         {% namespace 'config' %}
-        <fieldset>
+            <fieldset>
                 <legend>
                     <h2>Ignore Fields</h2>
                 </legend>
@@ -98,6 +98,54 @@
                     name: "disabledFields",
                     options: fieldsOptions,
                 }) }}
+                {# Add this where your ignore fields section begins #}
+                <div class="field">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="check-all-ignore" class="checkbox">
+                        <label class="checkbox-label" for="check-all-ignore">{{ "Check All"|t('multi-translator') }}</label>
+                    </div>
+                </div>
+
+                {# Make sure your existing ignore field checkboxes have the 'ignore-field-checkbox' class #}
+                {# Example: <input type="checkbox" name="ignoreFields[]" value="{{ field.handle }}" class="ignore-field-checkbox"> #}
+
+                {# Add this JavaScript at the end of your template #}
+                {% js %}
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Get the "check all" checkbox
+                    var checkAllIgnore = document.getElementById('config-check-all-ignore');
+                    
+                    if (checkAllIgnore) {
+                        // Get all ignore field checkboxes
+                        var ignoreCheckboxes = document.querySelectorAll('#config-disabledFields .checkbox');
+                        console.log(ignoreCheckboxes);
+                        
+                        // Add event listener to the "check all" checkbox
+                        checkAllIgnore.addEventListener('change', function() {
+                            for (var i = 0; i < ignoreCheckboxes.length; i++) {
+                                ignoreCheckboxes[i].checked = this.checked;
+                            }
+                        });
+                        
+                        // Add event listeners to individual checkboxes
+                        for (var i = 0; i < ignoreCheckboxes.length; i++) {
+                            ignoreCheckboxes[i].addEventListener('change', function() {
+                                // Check if all checkboxes are checked
+                                var allChecked = true;
+                                for (var j = 0; j < ignoreCheckboxes.length; j++) {
+                                    if (!ignoreCheckboxes[j].checked) {
+                                        allChecked = false;
+                                        break;
+                                    }
+                                }
+                                
+                                // Update the "check all" checkbox
+                                checkAllIgnore.checked = allChecked;
+                            });
+                        }
+                    }
+                });
+                {% endjs %}
             </fieldset>
             <fieldset>
                 <legend>
@@ -160,6 +208,16 @@
                     name: "processNestedEntries",
                     on: settings.processNestedEntries,
                     errors: settings.getErrors("processNestedEntries"),
+                }) }}
+
+                {{ forms.textareaField({
+                    label: "Add to prompt",
+                    instructions: "Add custom instructions to the translation prompt. This will be added to the prompt sent to the translation service.",
+                    id: "addToPrompt",
+                    name: "addToPrompt",
+                    value: settings.getAddToPrompt,
+                    errors: settings.getErrors("addToPrompt"),
+                    rows: 4,
                 }) }}
             </fieldset>
         {% endnamespace %}

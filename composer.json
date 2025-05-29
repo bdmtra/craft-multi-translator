@@ -1,5 +1,5 @@
 {
-    "name": "digitalpulsebe/craft-multi-translator",
+    "name": "bdmtra/craft-multi-translator",
     "description": "Translate content of elements using the external services",
     "type": "craft-plugin",
     "license": "proprietary",

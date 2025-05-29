@@ -138,6 +138,16 @@
                     type: 'number', min: 0, max: 2, step: 0.1,
                     value: settings.openAiTemperature,
                 }) }}
+
+                {{ forms.textareaField({
+                    label: 'Custom Prompt Instructions',
+                    instructions: 'Add custom instructions to the translation prompt. This will be added to the prompt sent to the OpenAI API.',
+                    id: 'addToPrompt',
+                    name: 'addToPrompt',
+                    value: settings.getAddToPrompt ?? '',
+                    rows: 4,
+                    errors: settings.getErrors('addToPrompt'),
+                }) }}
             </fieldset>
 
             <hr>
