@@ -52,19 +52,19 @@ JS, [static::class]);
             throw new UnauthorizedHttpException('You are not allowed to translate Elements in bulk');
         }
 
-        Craft::$app
-            ->getQueue()
-            ->ttr(MultiTranslator::getInstance()->getSettings()->queueJobTtr)
-            ->push(new BulkTranslateJob([
-                'elementIds' => $elementIds,
-                'elementType' => $query->elementType,
-                'sourceSiteHandle' => $this->sourceSiteHandle,
-                'targetSiteHandle' => $this->targetSiteHandle,
-                'description' => 'Translating '.count($elementIds).' elements...'
-            ]))
-        ;
-
-        $this->setMessage('Added to queue');
+        foreach ($elementIds as $elementId) {
+            Craft::$app
+                ->getQueue()
+                ->ttr(MultiTranslator::getInstance()->getSettings()->queueJobTtr)
+                ->push(new BulkTranslateJob([
+                    'elementIds' => [$elementId], // Pass as array if job expects array, or just $elementId if expects scalar
+                    'elementType' => $query->elementType,
+                    'sourceSiteHandle' => $this->sourceSiteHandle,
+                    'targetSiteHandle' => $this->targetSiteHandle,
+                    'description' => "Translating element $elementId"
+                ]));
+        }
+        $this->setMessage('Added to queue: '.count($elementIds).' jobs.');
 
         return true;
     }
