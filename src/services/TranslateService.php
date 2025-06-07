@@ -43,12 +43,16 @@ class TranslateService extends Component
      */
     public function translateElement(Element $source, Site $sourceSite, Site $targetSite): Element
     {
+        // Check if the target element is already translated
+        $targetElement = $this->findTargetElement($source, $targetSite->id);
+        if ($targetElement && $targetElement->getFieldValue('translated')) {
+            // Already translated, skip
+            return $targetElement;
+        }
+
         // translate inside of Element, get serialized data
         $translatedValues = $this->translateElementFields($source, $sourceSite, $targetSite, true);
         $translatedValues['translated'] = true;
-
-        // find or create target (destination)
-        $targetElement = $this->findTargetElement($source, $targetSite->id);
 
         if (isset($translatedValues['title'])) {
             // title is not a custom field
