@@ -22,18 +22,46 @@ class TranslateService extends Component
 {
     /**
      * Runs mysql_reconnect before the callback to ensure DB connection is alive.
-     * @param callable $callback
-     * @return mixed
+     * Includes retries and connection verification to handle flaky connections.
+     * 
+     * @param callable $callback Function to execute with a verified database connection
+     * @param int $retries Maximum number of connection attempts
+     * @return mixed Result of the callback function
+     * @throws \Exception When connection fails after all retries
      */
-    private function withMysqlReconnect(callable $callback)
+    private function withMysqlReconnect(callable $callback, int $retries = 3)
     {
         $db = \Craft::$app->getDb();
-        try {
-            $db->open(); // Ensures the connection is alive or reconnects if needed
-        } catch (\Throwable $e) {
-            // Optionally log the error or handle it as needed
+        
+        for ($attempt = 1; $attempt <= $retries; $attempt++) {
+            try {
+                // Force close and reopen to ensure a fresh connection
+                if ($db->isActive) {
+                    $db->close();
+                }
+                
+                $db->open();
+                
+                // Verify connection with a simple query
+                $db->createCommand('SELECT 1')->execute();
+                
+                // If we get here, connection is working
+                return $callback();
+                
+            } catch (\Throwable $e) {
+                \Craft::error(
+                    "Database connection attempt {$attempt}/{$retries} failed: " . $e->getMessage(),
+                    __METHOD__
+                );
+                
+                if ($attempt >= $retries) {
+                    throw new \Exception("Failed to establish database connection after {$retries} attempts: " . $e->getMessage(), 0, $e);
+                }
+                
+                // Wait before retrying (exponential backoff)
+                sleep(min(5, $attempt * 2));
+            }
         }
-        return $callback();
     }
 
     static array $textFields = [
