@@ -39,8 +39,9 @@ class TranslateController extends Controller
             return ExitCode::UNSPECIFIED_ERROR;
         }
         
-        // Parse comma-separated entry IDs
+        // Parse comma-separated entry IDs and reverse their order
         $entryIdList = array_map('trim', explode(',', $entryIds));
+        $entryIdList = array_reverse($entryIdList); // Process in reverse order
         $successCount = 0;
         $failCount = 0;
         
