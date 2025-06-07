@@ -20,6 +20,17 @@ use digitalpulsebe\craftmultitranslator\MultiTranslator;
 
 class TranslateService extends Component
 {
+    /**
+     * Runs mysql_reconnect before the callback to ensure DB connection is alive.
+     * @param callable $callback
+     * @return mixed
+     */
+    private function withMysqlReconnect(callable $callback)
+    {
+        \Craft::$app->getDb()->createCommand('mysql_reconnect')->execute();
+        return $callback();
+    }
+
     static array $textFields = [
         'craft\fields\PlainText',
         'craft\redactor\Field',
@@ -44,7 +55,7 @@ class TranslateService extends Component
     public function translateElement(Element $source, Site $sourceSite, Site $targetSite): Element
     {
         // Check if the target element is already translated
-        $targetElement = $this->findTargetElement($source, $targetSite->id);
+        $targetElement = $this->withMysqlReconnect(fn() => $this->findTargetElement($source, $targetSite->id));
         if ($targetElement && $targetElement->getFieldValue('translated')) {
             // Already translated, skip
             return $targetElement;
@@ -78,15 +89,15 @@ class TranslateService extends Component
 
         if ($targetElement instanceof Entry && $targetElement->getIsDraft()) {
             // only Entries can have drafts
-            \Craft::$app->drafts->saveElementAsDraft($targetElement, null, 'Translated Draft', $revisionNotes);
+            $this->withMysqlReconnect(fn() => \Craft::$app->drafts->saveElementAsDraft($targetElement, null, 'Translated Draft', $revisionNotes));
         } elseif ($targetElement instanceof Entry && $this->getProviderSettings()->getSaveAsDraft()) {
             // only Entries can have drafts
-            $targetElement = \Craft::$app->drafts->createDraft($targetElement, null, 'Translated Draft', $revisionNotes);
+            $targetElement = $this->withMysqlReconnect(fn() => \Craft::$app->drafts->createDraft($targetElement, null, 'Translated Draft', $revisionNotes));
             $targetElement->setFieldValues($translatedValues);
-            \Craft::$app->elements->saveElement($targetElement);
+            $this->withMysqlReconnect(fn() => \Craft::$app->elements->saveElement($targetElement));
         } else {
             $targetElement->setRevisionNotes($revisionNotes);
-            \Craft::$app->elements->saveElement($targetElement);
+            $this->withMysqlReconnect(fn() => \Craft::$app->elements->saveElement($targetElement));
         }
 
         if ($source instanceof Product) {
