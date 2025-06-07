@@ -43,7 +43,7 @@ class TranslateController extends Controller
         }
 
         try {
-            $translated = MultiTranslator::getInstance()->translateService->translateElement($entry, $sourceSite, $targetSite);
+            $translated = MultiTranslator::getInstance()->translate->translateElement($entry, $sourceSite, $targetSite);
             $this->stdout("Successfully translated entry ID $entryId from $sourceSiteHandle to $targetSiteHandle.\n");
             return ExitCode::OK;
         } catch (\Throwable $e) {
