@@ -27,7 +27,12 @@ class TranslateService extends Component
      */
     private function withMysqlReconnect(callable $callback)
     {
-        \Craft::$app->getDb()->createCommand('mysql_reconnect')->execute();
+        $db = \Craft::$app->getDb();
+        try {
+            $db->open(); // Ensures the connection is alive or reconnects if needed
+        } catch (\Throwable $e) {
+            // Optionally log the error or handle it as needed
+        }
         return $callback();
     }
 
